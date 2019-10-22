@@ -1,0 +1,87 @@
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:batch="http://www.springframework.org/schema/batch" xmlns:task="http://www.springframework.org/schema/task"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:util="http://www.springframework.org/schema/util" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/batch
+		http://www.springframework.org/schema/batch/spring-batch-2.2.xsd
+		http://www.springframework.org/schema/beans 
+		http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+		http://www.springframework.org/schema/context
+	    http://www.springframework.org/schema/context/spring-context-3.2.xsd
+		http://www.springframework.org/schema/util 
+		http://www.springframework.org/schema/util/spring-util-3.2.xsd
+		http://www.springframework.org/schema/task
+    	http://www.springframework.org/schema/task/spring-task-3.2.xsd
+    	">
+    	
+   <context:component-scan base-package="com.virginmedia" />
+
+	<batch:job id="batchScriptJob">
+		<batch:step id="step1">
+			<batch:tasklet>
+				<batch:chunk reader="txtFileItemReader" writer="txtFileItemWriter" processor="dataProcessor"
+					commit-interval="1">
+				</batch:chunk>
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+	
+	<bean id="dataSet" class="com.virginmedia.model.DataSet" scope="prototype" />
+
+	<bean id="dataProcessor" class="com.virginmedia.processor.DataProcessor" />
+ 
+	<bean id="txtFileItemReader" class="org.springframework.batch.item.file.FlatFileItemReader">
+	
+		<!-- Read a text file -->
+		<property name="resource" value="classpath:xml/File_20190101_173020.txt" />
+
+		<property name="lineMapper">
+			<bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+				<property name="lineTokenizer">
+					<bean
+						class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+						<property name="names" value="serviceName,operationName,parameters" />
+					</bean>
+				</property>
+				<property name="fieldSetMapper">
+					<bean
+						class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+						<property name="prototypeBeanName" value="dataSet" />
+					</bean>
+				</property>
+			</bean>
+		</property>
+	</bean> 
+
+	<bean id="txtFileItemWriter" class="org.springframework.batch.item.file.FlatFileItemWriter">
+
+		<!-- write to this txt file -->
+		<property name="resource" value="file:cvs/report.txt" />
+		<property name="shouldDeleteIfExists" value="true" />
+
+		<property name="lineAggregator">
+			<bean
+				class="org.springframework.batch.item.file.transform.DelimitedLineAggregator">
+				<property name="delimiter" value="," />
+				<property name="fieldExtractor">
+					<bean
+						class="org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor">
+						<property name="names" value="serviceName, operationName, parameters, status, errorCode" />
+					</bean>
+				</property>
+			</bean>
+		</property>
+
+	</bean>
+	
+	<bean id="runScheduler" class="com.virginmedia.RunScheduler" />
+
+	<!-- Run every 5 seconds -->
+	<task:scheduled-tasks>
+		<!-- <task:scheduled ref="runScheduler" method="run" fixed-delay="5000" 
+			/> -->
+		<task:scheduled ref="runScheduler" method="run"
+			cron="*/5 * * * * *" />
+	</task:scheduled-tasks>
+
+</beans>
